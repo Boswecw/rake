@@ -23,6 +23,8 @@ from models.document import RawDocument, DocumentSource
 from sources.base import BaseSourceAdapter, FetchError
 from sources.file_upload import FileUploadAdapter
 from sources.sec_edgar import SECEdgarAdapter
+from sources.url_scrape import URLScrapeAdapter
+from sources.api_fetch import APIFetchAdapter
 from services.telemetry_client import telemetry
 from config import settings
 
@@ -70,9 +72,10 @@ class FetchStage:
         self.adapters: Dict[str, type[BaseSourceAdapter]] = {
             DocumentSource.FILE_UPLOAD.value: FileUploadAdapter,
             DocumentSource.SEC_EDGAR.value: SECEdgarAdapter,
+            DocumentSource.URL_SCRAPE.value: URLScrapeAdapter,
+            DocumentSource.API_FETCH.value: APIFetchAdapter,
             # Add more adapters as they're implemented:
-            # DocumentSource.URL_SCRAPE.value: URLScrapeAdapter,
-            # DocumentSource.API_FETCH.value: APIFetchAdapter,
+            # DocumentSource.DATABASE_QUERY.value: DatabaseQueryAdapter,
         }
         self.logger = logging.getLogger(__name__)
 

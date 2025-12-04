@@ -1,9 +1,16 @@
 # Rake V1 - Git Ignore File
 
-# Environment
+# Environment & Secrets
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
 
 # Python
 __pycache__/
@@ -28,22 +35,31 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Virtual Environments
 venv/
 ENV/
 env/
 .venv
+.virtualenv/
+pipenv/
 
-# IDE
+# IDE & Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+.settings/
 
-# Testing
+# Testing & Coverage
 .pytest_cache/
 .coverage
 .coverage.*
@@ -53,40 +69,132 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
+.pytest_cache/
+nosetests.xml
+test-results/
+.cache/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# mypy
+# Type Checking
 .mypy_cache/
 .dmypy.json
 dmypy.json
+.pyre/
+.pytype/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
 
 # Logs
 *.log
 logs/
 *.log.*
+log/
+*.log.gz
 
 # Temporary files
 *.tmp
 *.temp
 *.bak
+*.backup
 *.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+.Spotlight-V100
+.Trashes
 
 # Application specific
 uploads/
 downloads/
 temp/
 cache/
+.cache/
+tmp/
+data/
 
 # Alembic
 alembic/versions/*.pyc
+
+# Docker
+docker-compose.override.yml
+.dockerignore.local
+*.tar
+.docker/
+
+# Claude Code
+.claude/
+.claude-*
+*.claude.bak
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+site/
+
+# CI/CD
+.github/workflows/*.local.yml
+
+# Backup files
+*.orig
+*.rej
+*.bck
+*~.nib
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Security & API Keys
+.apikeys
+.secrets
+api_keys.txt
+tokens.txt
+
+# Large files
+*.pdf
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.dmg
+*.iso
+
+# Node modules (if any frontend tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System files
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.AppleDouble
+.LSOverride
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Private notes
+NOTES.md
+TODO.private.md
+SCRATCH.md

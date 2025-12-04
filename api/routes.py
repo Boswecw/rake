@@ -81,13 +81,37 @@ class JobSubmitRequest(BaseModel):
     file_path: Optional[str] = Field(None, description="File path for file_upload source")
 
     # URL scrape parameters
-    url: Optional[str] = Field(None, description="URL for url_scrape source")
+    url: Optional[str] = Field(None, description="Single URL to scrape (for url_scrape source)")
+    sitemap_url: Optional[str] = Field(None, description="Sitemap URL for bulk scraping (for url_scrape source)")
+    max_pages: Optional[int] = Field(10, description="Max pages to scrape from sitemap", ge=1, le=100)
 
     # SEC EDGAR parameters
     cik: Optional[str] = Field(None, description="Company CIK number (for sec_edgar source)")
     ticker: Optional[str] = Field(None, description="Stock ticker symbol (for sec_edgar source)")
     form_type: Optional[str] = Field(None, description="SEC filing form type (e.g., 10-K, 10-Q)")
     count: Optional[int] = Field(1, description="Number of filings to fetch", ge=1, le=10)
+
+    # API Fetch parameters
+    api_url: Optional[str] = Field(None, description="API endpoint URL (for api_fetch source)")
+    method: Optional[str] = Field("GET", description="HTTP method (GET, POST, PUT, etc.)")
+    auth_type: Optional[str] = Field("none", description="Auth type (none, api_key, bearer, basic, custom)")
+    api_key: Optional[str] = Field(None, description="API key for authentication")
+    api_key_name: Optional[str] = Field("X-API-Key", description="Header/query param name for API key")
+    auth_location: Optional[str] = Field("header", description="API key location (header or query)")
+    bearer_token: Optional[str] = Field(None, description="Bearer token for authentication")
+    username: Optional[str] = Field(None, description="Username for basic auth")
+    password: Optional[str] = Field(None, description="Password for basic auth")
+    custom_headers: Optional[Dict[str, str]] = Field(None, description="Custom HTTP headers")
+    query_params: Optional[Dict[str, Any]] = Field(None, description="Query parameters")
+    body: Optional[Dict[str, Any]] = Field(None, description="Request body for POST/PUT")
+    response_format: Optional[str] = Field("json", description="Response format (json or xml)")
+    data_path: Optional[str] = Field(None, description="JSON path to data (e.g., 'data.items')")
+    xml_item_tag: Optional[str] = Field("item", description="XML tag name for items")
+    content_field: Optional[str] = Field("content", description="Field name containing content")
+    title_field: Optional[str] = Field("title", description="Field name containing title")
+    pagination_type: Optional[str] = Field("none", description="Pagination strategy (none, link_header, json_path, offset)")
+    next_page_path: Optional[str] = Field(None, description="JSON path to next page URL")
+    max_api_pages: Optional[int] = Field(10, description="Max pages to fetch from API", ge=1, le=100)
 
     # Common parameters
     scheduled: bool = Field(default=False, description="Whether job is scheduled")
@@ -445,17 +469,26 @@ async def submit_job(
             status_code=400,
             detail="file_path is required for file_upload source"
         )
-    elif request.source == "url_scrape" and not request.url:
-        raise HTTPException(
-            status_code=400,
-            detail="url is required for url_scrape source"
-        )
+    elif request.source == "url_scrape":
+        # URL scraping requires either url or sitemap_url
+        if not request.url and not request.sitemap_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Either url or sitemap_url is required for url_scrape source"
+            )
     elif request.source == "sec_edgar":
         # SEC EDGAR requires either CIK or ticker
         if not request.cik and not request.ticker:
             raise HTTPException(
                 status_code=400,
                 detail="Either cik or ticker is required for sec_edgar source"
+            )
+    elif request.source == "api_fetch":
+        # API fetch requires URL
+        if not request.api_url:
+            raise HTTPException(
+                status_code=400,
+                detail="api_url is required for api_fetch source"
             )
 
     # Create job record
@@ -480,12 +513,75 @@ async def submit_job(
 
     # Queue background task
     source_params = {}
+
+    # File upload params
     if request.file_path:
         source_params["file_path"] = request.file_path
+
+    # URL scrape params
     if request.url:
         source_params["url"] = request.url
+    if request.sitemap_url:
+        source_params["sitemap_url"] = request.sitemap_url
+    if request.max_pages:
+        source_params["max_pages"] = request.max_pages
+
+    # SEC EDGAR params
+    if request.cik:
+        source_params["cik"] = request.cik
+    if request.ticker:
+        source_params["ticker"] = request.ticker
+    if request.form_type:
+        source_params["form_type"] = request.form_type
+    if request.count:
+        source_params["count"] = request.count
+
+    # API Fetch params
+    if request.api_url:
+        source_params["url"] = request.api_url  # Map api_url to url for adapter
+    if request.method:
+        source_params["method"] = request.method
+    if request.auth_type:
+        source_params["auth_type"] = request.auth_type
+    if request.api_key:
+        source_params["api_key"] = request.api_key
+    if request.api_key_name:
+        source_params["api_key_name"] = request.api_key_name
+    if request.auth_location:
+        source_params["auth_location"] = request.auth_location
+    if request.bearer_token:
+        source_params["bearer_token"] = request.bearer_token
+    if request.username:
+        source_params["username"] = request.username
+    if request.password:
+        source_params["password"] = request.password
+    if request.custom_headers:
+        source_params["custom_headers"] = request.custom_headers
+    if request.query_params:
+        source_params["query_params"] = request.query_params
+    if request.body:
+        source_params["body"] = request.body
+    if request.response_format:
+        source_params["response_format"] = request.response_format
+    if request.data_path:
+        source_params["data_path"] = request.data_path
+    if request.xml_item_tag:
+        source_params["xml_item_tag"] = request.xml_item_tag
+    if request.content_field:
+        source_params["content_field"] = request.content_field
+    if request.title_field:
+        source_params["title_field"] = request.title_field
+    if request.pagination_type:
+        source_params["pagination_type"] = request.pagination_type
+    if request.next_page_path:
+        source_params["next_page_path"] = request.next_page_path
+    if request.max_api_pages:
+        source_params["max_pages"] = request.max_api_pages  # Map max_api_pages to max_pages
+
+    # Common params
     if request.scheduled:
         source_params["scheduled"] = request.scheduled
+
     # Include any extra fields from request
     source_params.update(request.metadata)
 

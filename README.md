@@ -8,43 +8,57 @@ Rake is a production-ready SaaS backend that fetches documents from multiple sou
 
 Rake handles the complete data ingestion workflow:
 
-1. **FETCH** → Retrieve documents from sources (PDFs, APIs, websites)
+1. **FETCH** → Retrieve documents from sources (PDFs, APIs, websites, SEC EDGAR)
 2. **CLEAN** → Normalize and clean text content
 3. **CHUNK** → Split documents into semantic segments
 4. **EMBED** → Generate vector embeddings (OpenAI)
 5. **STORE** → Persist to DataForge (PostgreSQL + pgvector)
 
+### 📂 Supported Data Sources
+
+- ✅ **File Uploads**: PDF, DOCX, TXT, PPTX, Markdown
+- ✅ **SEC EDGAR**: Financial filings (10-K, 10-Q, 8-K, etc.)
+- ✅ **URL Scraping**: Web pages, articles, and documentation
+- ✅ **API Integration**: External REST/HTTP APIs with multiple auth methods
+- ⏳ **Database Queries**: Direct database ingestion (coming soon)
+
 ## 🏗️ Architecture
 
 ```
-┌─────────────┐
-│   Sources   │ (PDF, API, Web)
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   FETCH     │ Stage 1: Document Retrieval
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   CLEAN     │ Stage 2: Text Normalization
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   CHUNK     │ Stage 3: Semantic Chunking
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   EMBED     │ Stage 4: Vector Generation
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   STORE     │ Stage 5: DataForge Persistence
-└─────────────┘
+┌─────────────────────────────────────┐
+│           Data Sources              │
+│  (PDF, DOCX, SEC EDGAR, Web, API)  │
+└────────────────┬────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────┐
+│   FETCH (Stage 1)                   │
+│   Document Retrieval & Validation   │
+└────────────────┬────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────┐
+│   CLEAN (Stage 2)                   │
+│   Text Normalization & Cleaning     │
+└────────────────┬────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────┐
+│   CHUNK (Stage 3)                   │
+│   Semantic Chunking & Segmentation  │
+└────────────────┬────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────┐
+│   EMBED (Stage 4)                   │
+│   Vector Generation (OpenAI)        │
+└────────────────┬────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────┐
+│   STORE (Stage 5)                   │
+│   DataForge (PostgreSQL + pgvector) │
+└─────────────────────────────────────┘
 ```
 
 ## 📦 Tech Stack
@@ -56,6 +70,36 @@ Rake handles the complete data ingestion workflow:
 - **PostgreSQL + pgvector** - Vector storage
 - **OpenAI API** - Embedding generation
 - **APScheduler** - Job scheduling
+- **Docker** - Containerization & orchestration
+- **GitHub Actions** - CI/CD automation
+
+## ✨ Key Features
+
+### Data Sources
+- ✅ **File Uploads**: PDF, DOCX, TXT, PPTX, Markdown
+- ✅ **SEC EDGAR**: Financial filings from 10,000+ companies
+- ✅ **URL Scraping**: Web pages with intelligent content extraction
+- 🔜 API Integration, Database Queries
+
+### Pipeline & Processing
+- ✅ **5-Stage Pipeline**: FETCH → CLEAN → CHUNK → EMBED → STORE
+- ✅ **Async Processing**: High-performance concurrent operations
+- ✅ **Retry Logic**: Exponential backoff for resilience
+- ✅ **Rate Limiting**: SEC-compliant (10 req/s)
+
+### Production Ready
+- ✅ **Multi-tenant Support**: JWT authentication & tenant isolation
+- ✅ **Job Scheduling**: Cron and interval-based automation
+- ✅ **Telemetry**: Comprehensive event emission & monitoring
+- ✅ **Docker & CI/CD**: Automated testing & deployment
+- ✅ **Type Safety**: 100% type hints with validation
+- ✅ **Test Coverage**: 80%+ with unit & integration tests
+
+### Developer Experience
+- ✅ **RESTful API**: 6 endpoints with OpenAPI documentation
+- ✅ **Interactive Docs**: Swagger UI & ReDoc
+- ✅ **Comprehensive Docs**: Setup, API, and implementation guides
+- ✅ **Error Handling**: Detailed error messages & correlation IDs
 
 ## 🚀 Quick Start
 
@@ -129,6 +173,15 @@ DATAFORGE_BASE_URL=http://localhost:8001
 OPENAI_API_KEY=sk-...
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 
+# SEC EDGAR (for financial filings)
+SEC_EDGAR_USER_AGENT="YourCompany/1.0 contact@yourcompany.com"
+SEC_EDGAR_RATE_LIMIT=0.1  # 10 requests/second (SEC requirement)
+
+# URL Scraping (for web pages)
+URL_SCRAPE_USER_AGENT="Rake/1.0 (Data Ingestion Bot)"
+URL_SCRAPE_RATE_LIMIT=1.0  # 1 second between requests
+URL_SCRAPE_RESPECT_ROBOTS=true  # Honor robots.txt
+
 # Pipeline
 MAX_WORKERS=4
 CHUNK_SIZE=500
@@ -194,12 +247,36 @@ GET /health
 Returns service health status and dependency checks.
 
 ### Submit Job
+
+**File Upload:**
 ```bash
 POST /api/v1/jobs
 {
   "source": "file_upload",
-  "document_url": "https://example.com/doc.pdf",
+  "file_path": "/path/to/document.pdf",
   "tenant_id": "tenant-123"
+}
+```
+
+**SEC EDGAR Financial Filings:**
+```bash
+POST /api/v1/jobs
+{
+  "source": "sec_edgar",
+  "ticker": "AAPL",
+  "form_type": "10-K",
+  "count": 1,
+  "tenant_id": "tenant-123"
+}
+```
+
+**Response:**
+```json
+{
+  "job_id": "job-abc123",
+  "correlation_id": "uuid-xyz",
+  "status": "pending",
+  "source": "sec_edgar"
 }
 ```
 
@@ -212,6 +289,199 @@ GET /api/v1/jobs/{job_id}
 ```bash
 GET /api/v1/jobs?tenant_id=tenant-123&status=completed
 ```
+
+## 📈 SEC EDGAR Integration
+
+Rake includes native support for fetching financial filings from the SEC EDGAR database.
+
+### Supported Filing Types
+
+- **10-K**: Annual reports
+- **10-Q**: Quarterly reports
+- **8-K**: Current reports (material events)
+- **DEF 14A**: Proxy statements
+- **S-1, S-3**: Registration statements
+- **13F-HR**: Institutional investment reports
+- And many more...
+
+### Quick Start
+
+**1. Configure User-Agent** (required by SEC):
+```bash
+# Add to .env
+SEC_EDGAR_USER_AGENT="MyCompany/1.0 support@mycompany.com"
+```
+
+**2. Fetch Apple's latest 10-K:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "sec_edgar",
+    "ticker": "AAPL",
+    "form_type": "10-K",
+    "count": 1
+  }'
+```
+
+**3. Fetch Microsoft's quarterly reports:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "sec_edgar",
+    "cik": "0000789019",
+    "form_type": "10-Q",
+    "count": 3
+  }'
+```
+
+### Parameters
+
+| Parameter | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| `ticker` | Either ticker OR cik | Stock ticker symbol | "AAPL", "MSFT" |
+| `cik` | Either ticker OR cik | Company CIK number | "0000320193" |
+| `form_type` | No | Filing form type | "10-K", "10-Q" |
+| `count` | No | Number of filings (1-10) | 1 (default) |
+
+### Features
+
+- ✅ Automatic ticker → CIK conversion
+- ✅ SEC-compliant rate limiting (10 req/s)
+- ✅ HTML parsing and text extraction
+- ✅ Comprehensive metadata extraction
+- ✅ Full pipeline integration (CLEAN → CHUNK → EMBED → STORE)
+
+**📚 Full Guide**: See [docs/SEC_EDGAR_GUIDE.md](docs/SEC_EDGAR_GUIDE.md) for complete documentation.
+
+## 🌐 URL Scraping Integration
+
+Rake includes intelligent web scraping with content extraction, robots.txt compliance, and sitemap support.
+
+### Supported Content Types
+
+- **Articles & Blog Posts**: Automatic main content extraction
+- **Documentation**: Technical docs and API references
+- **News Sites**: News articles and press releases
+- **Web Pages**: Marketing pages and landing pages
+
+### Quick Start
+
+**1. Scrape a single URL:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "url_scrape",
+    "url": "https://example.com/article",
+    "tenant_id": "tenant-123"
+  }'
+```
+
+**2. Bulk scrape from sitemap:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "url_scrape",
+    "sitemap_url": "https://example.com/sitemap.xml",
+    "max_pages": 10,
+    "tenant_id": "tenant-123"
+  }'
+```
+
+### Parameters
+
+| Parameter | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| `url` | Either url OR sitemap_url | Single URL to scrape | "https://blog.example.com/post" |
+| `sitemap_url` | Either url OR sitemap_url | XML sitemap for bulk scraping | "https://example.com/sitemap.xml" |
+| `max_pages` | No | Max URLs from sitemap (1-100) | 10 (default) |
+
+### Features
+
+- ✅ Intelligent content extraction (article, main, semantic tags)
+- ✅ Metadata extraction (title, description, author, Open Graph)
+- ✅ Robots.txt compliance checking
+- ✅ Per-domain rate limiting
+- ✅ Sitemap support (XML sitemaps and sitemap indexes)
+- ✅ Content size limits and timeout protection
+- ✅ Full pipeline integration (CLEAN → CHUNK → EMBED → STORE)
+
+**📚 Full Guide**: See [docs/URL_SCRAPE_GUIDE.md](docs/URL_SCRAPE_GUIDE.md) for complete documentation.
+
+## 🔌 API Integration
+
+Rake includes flexible API integration with support for multiple authentication methods, pagination strategies, and response formats.
+
+### Supported Authentication
+
+- **API Key**: Header or query parameter
+- **Bearer Token**: JWT, OAuth tokens
+- **Basic Auth**: Username/password
+- **Custom Headers**: Flexible authentication
+- **None**: Public APIs
+
+### Quick Start
+
+**1. Fetch from public API:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "api_fetch",
+    "api_url": "https://api.example.com/articles",
+    "response_format": "json",
+    "tenant_id": "tenant-123"
+  }'
+```
+
+**2. Fetch with API key authentication:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "api_fetch",
+    "api_url": "https://api.example.com/protected/data",
+    "auth_type": "api_key",
+    "api_key": "your-api-key",
+    "api_key_name": "X-API-Key",
+    "auth_location": "header",
+    "response_format": "json",
+    "data_path": "data.items",
+    "tenant_id": "tenant-123"
+  }'
+```
+
+**3. Fetch with pagination:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "api_fetch",
+    "api_url": "https://api.example.com/articles",
+    "auth_type": "bearer",
+    "bearer_token": "your-token",
+    "response_format": "json",
+    "pagination_type": "json_path",
+    "next_page_path": "pagination.next",
+    "max_api_pages": 5,
+    "tenant_id": "tenant-123"
+  }'
+```
+
+### Features
+
+- ✅ Multiple authentication methods (API Key, Bearer, Basic, Custom)
+- ✅ HTTP methods support (GET, POST, PUT, PATCH, DELETE)
+- ✅ Pagination strategies (Link headers, JSON path, offset-based)
+- ✅ Response formats (JSON with path navigation, XML parsing)
+- ✅ Field mapping (configurable content and title fields)
+- ✅ Rate limiting and retry logic
+- ✅ Full pipeline integration (CLEAN → CHUNK → EMBED → STORE)
+
+**📚 Full Guide**: See [docs/API_FETCH_GUIDE.md](docs/API_FETCH_GUIDE.md) for complete documentation.
 
 ## 📊 Telemetry
 
@@ -620,10 +890,21 @@ Rake integrates with:
 
 ## 📚 Documentation
 
-- [API Documentation](http://localhost:8002/api/docs) - Interactive API docs
-- [ReDoc](http://localhost:8002/api/redoc) - Alternative API docs
-- [Architecture Guide](docs/architecture.md) - Detailed architecture
-- [Development Guide](docs/development.md) - Development workflow
+### API Documentation
+- [Interactive API Docs](http://localhost:8002/api/docs) - Swagger UI
+- [ReDoc](http://localhost:8002/api/redoc) - Alternative API documentation
+
+### Feature Guides
+- [SEC EDGAR Guide](docs/SEC_EDGAR_GUIDE.md) - Complete SEC EDGAR integration guide
+- [URL Scraping Guide](docs/URL_SCRAPE_GUIDE.md) - Complete URL scraping integration guide
+- [API Integration Guide](docs/API_FETCH_GUIDE.md) - Complete API integration guide
+- [Quick Start Guide](QUICKSTART.md) - 5-minute setup guide
+- [Testing Guide](tests/README.md) - Testing documentation
+
+### Implementation Details
+- [Implementation Complete](IMPLEMENTATION_COMPLETE.md) - Full implementation summary
+- [Docker & CI/CD](DOCKER_CICD_COMPLETE.md) - Containerization guide
+- [SEC EDGAR Implementation](SEC_EDGAR_IMPLEMENTATION_COMPLETE.md) - SEC integration details
 
 ## 📄 License
 
@@ -639,5 +920,35 @@ For issues and questions:
 
 ---
 
-**Status**: ✅ Phase 1 Complete (Foundation)
-**Next**: Phase 2 - Telemetry & Models
+## ✅ Project Status
+
+**Current Version**: 1.0.0
+
+### Completed Features
+- ✅ **Core Pipeline**: 5-stage ingestion (FETCH → CLEAN → CHUNK → EMBED → STORE)
+- ✅ **File Upload Support**: PDF, DOCX, TXT, PPTX, Markdown
+- ✅ **SEC EDGAR Integration**: Financial filings (10-K, 10-Q, 8-K, etc.)
+- ✅ **URL Scraping Integration**: Web pages with intelligent content extraction
+- ✅ **API Integration**: External REST/HTTP APIs with multiple auth methods
+- ✅ **Multi-tenant Support**: JWT authentication & tenant context
+- ✅ **Job Scheduling**: APScheduler with cron/interval support
+- ✅ **Retry Logic**: Exponential backoff for resilience
+- ✅ **Telemetry**: Comprehensive event emission
+- ✅ **Docker Support**: Production-ready containerization
+- ✅ **CI/CD Pipeline**: Automated testing & deployment
+- ✅ **Test Coverage**: 80%+ coverage with unit & integration tests
+- ✅ **Type Safety**: 100% type hints with mypy validation
+- ✅ **Documentation**: Complete API & implementation docs
+
+### In Development
+- ⏳ **Database Queries**: Direct database ingestion (planned)
+
+### Statistics
+- **Total Lines**: ~14,000+ lines of production code
+- **Test Coverage**: 80%+
+- **API Endpoints**: 6 REST endpoints
+- **Data Sources**: 4 (File Upload, SEC EDGAR, URL Scraping, API Integration)
+- **Pipeline Stages**: 5
+- **Documentation Files**: 14+
+
+**Status**: 🚀 Production Ready

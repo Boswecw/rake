@@ -103,6 +103,68 @@ class Settings(BaseSettings):
         description="Rate limit delay in seconds (0.1 = 10 req/s max)"
     )
 
+    # URL Scraping Configuration
+    URL_SCRAPE_USER_AGENT: str = Field(
+        default="Rake/1.0 (Data Ingestion Bot)",
+        description="User-Agent for URL scraping"
+    )
+    URL_SCRAPE_RATE_LIMIT: float = Field(
+        default=1.0,
+        ge=0.1,
+        le=10.0,
+        description="Rate limit delay per domain in seconds"
+    )
+    URL_SCRAPE_MAX_SIZE: int = Field(
+        default=10 * 1024 * 1024,  # 10MB
+        ge=1024 * 1024,  # Min 1MB
+        le=50 * 1024 * 1024,  # Max 50MB
+        description="Maximum page size in bytes"
+    )
+    URL_SCRAPE_TIMEOUT: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Request timeout in seconds"
+    )
+    URL_SCRAPE_RESPECT_ROBOTS: bool = Field(
+        default=True,
+        description="Whether to respect robots.txt"
+    )
+
+    # API Fetch Configuration
+    API_FETCH_USER_AGENT: str = Field(
+        default="Rake/1.0 (API Integration Bot)",
+        description="User-Agent for API requests"
+    )
+    API_FETCH_RATE_LIMIT: float = Field(
+        default=0.5,
+        ge=0.1,
+        le=10.0,
+        description="Rate limit delay between API requests in seconds"
+    )
+    API_FETCH_TIMEOUT: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="API request timeout in seconds"
+    )
+    API_FETCH_MAX_RETRIES: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for failed API requests"
+    )
+    API_FETCH_MAX_ITEMS: int = Field(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Maximum items to fetch per API job"
+    )
+    API_FETCH_VERIFY_SSL: bool = Field(
+        default=True,
+        description="Verify SSL certificates for API requests"
+    )
+
     # Pipeline Configuration
     MAX_WORKERS: int = Field(default=4, ge=1, le=32, description="Max concurrent pipeline workers")
     RETRY_ATTEMPTS: int = Field(default=3, ge=1, le=10)
