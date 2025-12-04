@@ -32,14 +32,15 @@ from typing import Dict, Any, Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+from config import settings
+
 logger = logging.getLogger(__name__)
 
-# JWT Configuration
-# In production, load these from environment variables or secrets manager
-SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Load from settings
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
-REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days
+# JWT Configuration loaded from environment variables
+SECRET_KEY = settings.JWT_SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

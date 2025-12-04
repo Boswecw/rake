@@ -91,6 +91,30 @@ class Settings(BaseSettings):
     # Anthropic (optional, for future use)
     ANTHROPIC_API_KEY: Optional[str] = None
 
+    # JWT Authentication
+    JWT_SECRET_KEY: str = Field(
+        default="development_secret_key_change_in_production",
+        min_length=32,
+        description="Secret key for JWT token signing (min 32 characters)"
+    )
+    JWT_ALGORITHM: str = Field(
+        default="HS256",
+        pattern="^(HS256|HS384|HS512|RS256|RS384|RS512)$",
+        description="JWT signing algorithm"
+    )
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=60,
+        ge=5,
+        le=1440,
+        description="Access token expiration in minutes (5 min - 24 hours)"
+    )
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=30,
+        ge=1,
+        le=90,
+        description="Refresh token expiration in days (1-90 days)"
+    )
+
     # SEC EDGAR Configuration
     SEC_EDGAR_USER_AGENT: str = Field(
         default="",
