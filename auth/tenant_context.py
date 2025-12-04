@@ -23,7 +23,7 @@ import logging
 from contextvars import ContextVar
 from typing import Optional
 
-from fastapi import Header, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from auth.jwt_handler import extract_tenant_id, verify_token, TokenError
