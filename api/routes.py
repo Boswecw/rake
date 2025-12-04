@@ -23,7 +23,6 @@ Example:
     >>> print(response.json())
 """
 
-import asyncio
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -34,6 +33,8 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from pipeline.orchestrator import PipelineOrchestrator, PipelineError
 from services.telemetry_client import telemetry
+from services.database import get_database, DatabaseError
+from models.job import JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -196,63 +197,111 @@ class JobListResponse(BaseModel):
 
 
 # ============================================================================
-# IN-MEMORY JOB STORAGE (TODO: Replace with database)
+# DATABASE JOB STORAGE (Replaced in-memory storage with PostgreSQL)
 # ============================================================================
-
-# TODO: Replace with database persistence (PostgreSQL + SQLAlchemy)
-# This is a temporary in-memory store for development/testing
-_job_store: Dict[str, Dict[str, Any]] = {}
-_job_store_lock = asyncio.Lock()
 
 
 async def _store_job(job_data: Dict[str, Any]) -> None:
-    """Store job in in-memory storage.
-
-    TODO: Replace with database INSERT operation.
+    """Store job in PostgreSQL database.
 
     Args:
         job_data: Job data dictionary
 
+    Raises:
+        DatabaseError: If database operation fails
+
     Example:
         >>> await _store_job({"job_id": "job-123", "status": "pending"})
     """
-    async with _job_store_lock:
-        _job_store[job_data["job_id"]] = job_data
+    try:
+        db = get_database()
+
+        # Add source_params field to store source-specific parameters
+        job_data_with_params = job_data.copy()
+        if "source_params" not in job_data_with_params:
+            job_data_with_params["source_params"] = {}
+
+        await db.create_job(job_data_with_params)
+
+        logger.debug(
+            f"Stored job in database: {job_data['job_id']}",
+            extra={"job_id": job_data["job_id"]}
+        )
+    except DatabaseError as e:
+        logger.error(
+            f"Failed to store job {job_data.get('job_id')}: {str(e)}",
+            extra={"job_id": job_data.get("job_id"), "error": str(e)}
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create job: {str(e)}"
+        )
 
 
 async def _get_job(job_id: str) -> Optional[Dict[str, Any]]:
-    """Get job from in-memory storage.
-
-    TODO: Replace with database SELECT operation.
+    """Get job from PostgreSQL database.
 
     Args:
         job_id: Job identifier
 
     Returns:
-        Job data or None if not found
+        Job data dictionary or None if not found
 
     Example:
         >>> job = await _get_job("job-123")
     """
-    async with _job_store_lock:
-        return _job_store.get(job_id)
+    try:
+        db = get_database()
+        job = await db.get_job(job_id)
+
+        if not job:
+            return None
+
+        # Convert Job model to dictionary for backwards compatibility
+        return job.to_dict()
+
+    except Exception as e:
+        logger.error(
+            f"Failed to get job {job_id}: {str(e)}",
+            extra={"job_id": job_id, "error": str(e)}
+        )
+        return None
 
 
 async def _update_job(job_id: str, updates: Dict[str, Any]) -> None:
-    """Update job in in-memory storage.
-
-    TODO: Replace with database UPDATE operation.
+    """Update job in PostgreSQL database.
 
     Args:
         job_id: Job identifier
         updates: Fields to update
 
+    Raises:
+        DatabaseError: If database operation fails
+
     Example:
         >>> await _update_job("job-123", {"status": "completed"})
     """
-    async with _job_store_lock:
-        if job_id in _job_store:
-            _job_store[job_id].update(updates)
+    try:
+        db = get_database()
+        job = await db.update_job(job_id, updates)
+
+        if job:
+            logger.debug(
+                f"Updated job in database: {job_id}",
+                extra={"job_id": job_id, "updates": list(updates.keys())}
+            )
+        else:
+            logger.warning(
+                f"Attempted to update non-existent job: {job_id}",
+                extra={"job_id": job_id}
+            )
+
+    except DatabaseError as e:
+        logger.error(
+            f"Failed to update job {job_id}: {str(e)}",
+            extra={"job_id": job_id, "error": str(e)}
+        )
+        # Continue execution - job updates are not critical for pipeline execution
 
 
 async def _list_jobs(
@@ -261,9 +310,7 @@ async def _list_jobs(
     page: int = 1,
     page_size: int = 10
 ) -> tuple[List[Dict[str, Any]], int]:
-    """List jobs from in-memory storage.
-
-    TODO: Replace with database SELECT with filters and pagination.
+    """List jobs from PostgreSQL database with filters and pagination.
 
     Args:
         tenant_id: Filter by tenant
@@ -277,26 +324,26 @@ async def _list_jobs(
     Example:
         >>> jobs, total = await _list_jobs(tenant_id="tenant-123", page=1)
     """
-    async with _job_store_lock:
-        # Filter jobs
-        jobs = list(_job_store.values())
+    try:
+        db = get_database()
+        jobs, total = await db.list_jobs(
+            tenant_id=tenant_id,
+            status=status,
+            page=page,
+            page_size=page_size
+        )
 
-        if tenant_id:
-            jobs = [j for j in jobs if j.get("tenant_id") == tenant_id]
-        if status:
-            jobs = [j for j in jobs if j.get("status") == status]
+        # Convert Job models to dictionaries for backwards compatibility
+        job_dicts = [job.to_dict() for job in jobs]
 
-        # Sort by created_at descending
-        jobs.sort(key=lambda x: x.get("created_at", datetime.min), reverse=True)
+        return job_dicts, total
 
-        total = len(jobs)
-
-        # Paginate
-        start = (page - 1) * page_size
-        end = start + page_size
-        paginated_jobs = jobs[start:end]
-
-        return paginated_jobs, total
+    except Exception as e:
+        logger.error(
+            f"Failed to list jobs: {str(e)}",
+            extra={"tenant_id": tenant_id, "status": status, "error": str(e)}
+        )
+        return [], 0
 
 
 # ============================================================================
@@ -757,7 +804,7 @@ async def cancel_job(job_id: str) -> None:
 async def health_check() -> Dict[str, Any]:
     """Health check endpoint.
 
-    Returns service status and basic statistics.
+    Returns service status and basic statistics from database.
 
     Returns:
         Health status dictionary
@@ -767,29 +814,56 @@ async def health_check() -> Dict[str, Any]:
         >>> print(response.json()["status"])
         healthy
     """
-    async with _job_store_lock:
-        total_jobs = len(_job_store)
-        pending_jobs = len([j for j in _job_store.values() if j["status"] == "pending"])
-        running_jobs = len([
-            j for j in _job_store.values()
-            if j["status"] in ["fetching", "cleaning", "chunking", "embedding", "storing"]
-        ])
-        completed_jobs = len([j for j in _job_store.values() if j["status"] == "completed"])
-        failed_jobs = len([j for j in _job_store.values() if j["status"] == "failed"])
+    try:
+        db = get_database()
 
-    return {
-        "status": "healthy",
-        "service": "rake",
-        "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat(),
-        "statistics": {
-            "total_jobs": total_jobs,
-            "pending_jobs": pending_jobs,
-            "running_jobs": running_jobs,
-            "completed_jobs": completed_jobs,
-            "failed_jobs": failed_jobs,
+        # Get job statistics from database
+        all_jobs, total_jobs = await db.list_jobs(page=1, page_size=999999)
+
+        pending_jobs = len([j for j in all_jobs if j.status == JobStatus.PENDING])
+        running_jobs = len([
+            j for j in all_jobs
+            if j.status in [
+                JobStatus.FETCHING,
+                JobStatus.CLEANING,
+                JobStatus.CHUNKING,
+                JobStatus.EMBEDDING,
+                JobStatus.STORING
+            ]
+        ])
+        completed_jobs = len([j for j in all_jobs if j.status == JobStatus.COMPLETED])
+        failed_jobs = len([j for j in all_jobs if j.status == JobStatus.FAILED])
+
+        return {
+            "status": "healthy",
+            "service": "rake",
+            "version": "1.0.0",
+            "timestamp": datetime.utcnow().isoformat(),
+            "statistics": {
+                "total_jobs": total_jobs,
+                "pending_jobs": pending_jobs,
+                "running_jobs": running_jobs,
+                "completed_jobs": completed_jobs,
+                "failed_jobs": failed_jobs,
+            }
         }
-    }
+
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}", exc_info=True)
+        return {
+            "status": "degraded",
+            "service": "rake",
+            "version": "1.0.0",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "statistics": {
+                "total_jobs": 0,
+                "pending_jobs": 0,
+                "running_jobs": 0,
+                "completed_jobs": 0,
+                "failed_jobs": 0,
+            }
+        }
 
 
 # Example usage and testing
