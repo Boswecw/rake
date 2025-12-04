@@ -568,6 +568,425 @@ curl -X POST http://localhost:8002/api/v1/jobs \
 
 **📚 Full Guide**: See [docs/DATABASE_QUERY_GUIDE.md](docs/DATABASE_QUERY_GUIDE.md) for complete documentation.
 
+## 🗄️ Database Setup & Configuration
+
+Rake V1 uses PostgreSQL for job persistence and multi-tenant data isolation. This section provides complete setup instructions for development and production environments.
+
+### Prerequisites
+
+- PostgreSQL 14+ (recommended: PostgreSQL 15 or 16)
+- `asyncpg` driver (included in requirements.txt)
+- Alembic for migrations (included in requirements.txt)
+
+### Development Setup (SQLite)
+
+For local development and testing, Rake supports SQLite:
+
+```bash
+# Set in .env
+DATABASE_URL=sqlite+aiosqlite:///data/rake.db
+
+# Or use in-memory (testing only)
+DATABASE_URL=sqlite+aiosqlite:///:memory:
+```
+
+**Note**: SQLite is suitable for development and testing only. Use PostgreSQL for production deployments.
+
+### Production Setup (PostgreSQL)
+
+#### 1. Install PostgreSQL
+
+**Ubuntu/Debian:**
+```bash
+# Add PostgreSQL repository
+sudo apt update
+sudo apt install -y postgresql-14 postgresql-contrib-14
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+**macOS:**
+```bash
+# Using Homebrew
+brew install postgresql@14
+brew services start postgresql@14
+```
+
+**Docker:**
+```bash
+# Using official PostgreSQL image
+docker run -d \
+  --name rake-postgres \
+  -e POSTGRES_USER=rake_user \
+  -e POSTGRES_PASSWORD=your_secure_password \
+  -e POSTGRES_DB=forge \
+  -p 5432:5432 \
+  -v rake_postgres_data:/var/lib/postgresql/data \
+  postgres:14
+```
+
+#### 2. Create Database and User
+
+```bash
+# Connect to PostgreSQL as superuser
+sudo -u postgres psql
+
+# Create user
+CREATE USER rake_user WITH PASSWORD 'your_secure_password';
+
+# Create database
+CREATE DATABASE forge OWNER rake_user;
+
+# Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE forge TO rake_user;
+
+# Connect to the new database
+\c forge
+
+# Grant schema privileges
+GRANT ALL ON SCHEMA public TO rake_user;
+
+# Exit psql
+\q
+```
+
+**Security Best Practices:**
+- Use strong passwords (min 32 characters)
+- Rotate passwords regularly
+- Use separate users for different environments
+- Enable SSL/TLS for production connections
+- Configure `pg_hba.conf` to restrict access by IP
+
+#### 3. Configure Database Connection
+
+Update your `.env` file:
+
+```bash
+# Development
+DATABASE_URL=postgresql+asyncpg://rake_user:your_password@localhost:5432/forge
+
+# Production (with SSL)
+DATABASE_URL=postgresql+asyncpg://rake_user:your_password@db.example.com:5432/forge?ssl=require
+
+# Connection Pool Settings
+DATABASE_POOL_SIZE=10
+DATABASE_MAX_OVERFLOW=20
+```
+
+**Connection String Format:**
+```
+postgresql+asyncpg://username:password@host:port/database?options
+```
+
+**Common Options:**
+- `ssl=require` - Require SSL/TLS encryption
+- `ssl=verify-full` - Verify SSL certificate
+- `connect_timeout=10` - Connection timeout in seconds
+- `server_settings={"application_name":"rake"}` - Set application name
+
+#### 4. Run Database Migrations
+
+Rake uses Alembic for database schema management:
+
+```bash
+# Check current migration status
+alembic current
+
+# View migration history
+alembic history
+
+# Upgrade to latest version
+alembic upgrade head
+
+# Downgrade one version (if needed)
+alembic downgrade -1
+
+# Create new migration (after model changes)
+alembic revision --autogenerate -m "Add new column"
+```
+
+**Migration Files Location:** `alembic/versions/`
+
+#### 5. Verify Database Setup
+
+```bash
+# Test database connection
+python -c "
+import asyncio
+from services.database import DatabaseService
+
+async def test():
+    db = DatabaseService()
+    await db.init()
+    healthy = await db.health_check()
+    print(f'Database healthy: {healthy}')
+    await db.close()
+
+asyncio.run(test())
+"
+```
+
+Or use the health check endpoint:
+```bash
+curl http://localhost:8002/health | jq '.dependencies.database'
+```
+
+### Database Schema
+
+#### Jobs Table
+
+The `jobs` table stores all pipeline job metadata:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER | Auto-incrementing primary key |
+| `job_id` | VARCHAR(64) | Unique job identifier (indexed) |
+| `correlation_id` | VARCHAR(64) | Distributed tracing ID (indexed) |
+| `source` | VARCHAR(50) | Source type (indexed) |
+| `status` | VARCHAR(20) | Job status enum (indexed) |
+| `tenant_id` | VARCHAR(64) | Multi-tenant identifier (indexed) |
+| `created_at` | TIMESTAMP | Job creation time (indexed) |
+| `completed_at` | TIMESTAMP | Job completion time |
+| `duration_ms` | FLOAT | Total duration in milliseconds |
+| `documents_stored` | INTEGER | Number of documents stored |
+| `chunks_created` | INTEGER | Number of chunks created |
+| `embeddings_generated` | INTEGER | Number of embeddings generated |
+| `error_message` | TEXT | Error message if failed |
+| `stages_completed` | JSON | List of completed stage names |
+| `source_params` | JSON | Source-specific parameters |
+
+**Indexes:**
+- `job_id` (unique) - Fast job lookup
+- `correlation_id` - Distributed tracing
+- `source` - Filter by source type
+- `status` - Filter by status
+- `tenant_id` - Multi-tenant isolation
+- `created_at` - Time-based queries
+- Composite: `(tenant_id, status)` - Tenant job queries
+- Composite: `(tenant_id, created_at)` - Tenant time-series
+- Composite: `(status, created_at)` - Status time-series
+
+### Database Configuration Options
+
+All database settings are configured via environment variables:
+
+```bash
+# Database Connection
+DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/forge
+
+# Connection Pooling (PostgreSQL only)
+DATABASE_POOL_SIZE=10        # Base pool size (min connections)
+DATABASE_MAX_OVERFLOW=20     # Max overflow connections
+                             # Total max connections = pool_size + max_overflow
+
+# Environment
+ENVIRONMENT=production       # Controls SQL echo (debug in development)
+```
+
+**Connection Pool Sizing Guidelines:**
+
+- **Development**: `POOL_SIZE=5`, `MAX_OVERFLOW=10`
+- **Production (low traffic)**: `POOL_SIZE=10`, `MAX_OVERFLOW=20`
+- **Production (high traffic)**: `POOL_SIZE=20`, `MAX_OVERFLOW=40`
+- **Production (very high traffic)**: `POOL_SIZE=50`, `MAX_OVERFLOW=50`
+
+**Formula:** `connections = pool_size + max_overflow`
+
+**PostgreSQL Configuration:**
+```sql
+-- Check current connection limit
+SHOW max_connections;  -- Default: 100
+
+-- Increase if needed (in postgresql.conf)
+max_connections = 200
+
+-- Monitor active connections
+SELECT count(*) FROM pg_stat_activity WHERE datname = 'forge';
+```
+
+### Backup & Restore
+
+#### Automated Backups
+
+```bash
+#!/bin/bash
+# backup_database.sh
+
+BACKUP_DIR="/var/backups/rake"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="$BACKUP_DIR/forge_backup_$TIMESTAMP.sql.gz"
+
+# Create backup
+pg_dump -U rake_user -h localhost forge | gzip > $BACKUP_FILE
+
+# Keep only last 30 days
+find $BACKUP_DIR -name "forge_backup_*.sql.gz" -mtime +30 -delete
+
+echo "Backup completed: $BACKUP_FILE"
+```
+
+**Schedule with cron:**
+```bash
+# Daily backup at 2 AM
+0 2 * * * /path/to/backup_database.sh
+```
+
+#### Manual Backup
+
+```bash
+# Full database backup
+pg_dump -U rake_user -h localhost forge > backup.sql
+
+# Compressed backup
+pg_dump -U rake_user -h localhost forge | gzip > backup.sql.gz
+
+# Schema only
+pg_dump -U rake_user -h localhost --schema-only forge > schema.sql
+
+# Data only
+pg_dump -U rake_user -h localhost --data-only forge > data.sql
+```
+
+#### Restore Database
+
+```bash
+# Restore from backup
+psql -U rake_user -h localhost forge < backup.sql
+
+# Restore from compressed backup
+gunzip -c backup.sql.gz | psql -U rake_user -h localhost forge
+
+# Restore to new database
+createdb -U rake_user new_forge
+psql -U rake_user -h localhost new_forge < backup.sql
+```
+
+### Troubleshooting
+
+#### Connection Issues
+
+**Error: `FATAL: password authentication failed`**
+```bash
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+
+# Verify user exists
+sudo -u postgres psql -c "\du"
+
+# Reset password
+sudo -u postgres psql -c "ALTER USER rake_user WITH PASSWORD 'new_password';"
+
+# Update DATABASE_URL in .env
+```
+
+**Error: `could not connect to server: Connection refused`**
+```bash
+# Check PostgreSQL is listening
+sudo netstat -plnt | grep 5432
+
+# Edit postgresql.conf
+listen_addresses = '*'  # Or specific IP
+
+# Edit pg_hba.conf (allow connections)
+host    all             all             0.0.0.0/0               md5
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+```
+
+**Error: `remaining connection slots are reserved`**
+```bash
+# Increase max_connections in postgresql.conf
+max_connections = 200
+
+# Or reduce POOL_SIZE + MAX_OVERFLOW in .env
+```
+
+#### Migration Issues
+
+**Error: `Target database is not up to date`**
+```bash
+# Check current version
+alembic current
+
+# Upgrade to latest
+alembic upgrade head
+```
+
+**Error: `Can't locate revision identified by`**
+```bash
+# Reset alembic version (WARNING: Only in development!)
+alembic stamp head
+
+# Or start fresh
+alembic downgrade base
+alembic upgrade head
+```
+
+#### Performance Issues
+
+**Slow Queries:**
+```sql
+-- Enable query logging (postgresql.conf)
+log_min_duration_statement = 1000  -- Log queries > 1 second
+
+-- Check slow queries
+SELECT pid, now() - query_start as duration, query
+FROM pg_stat_activity
+WHERE state = 'active' AND now() - query_start > interval '5 seconds';
+```
+
+**Missing Indexes:**
+```sql
+-- Check table size
+SELECT pg_size_pretty(pg_total_relation_size('jobs'));
+
+-- Analyze query performance
+EXPLAIN ANALYZE SELECT * FROM jobs WHERE tenant_id = 'tenant-123';
+
+-- Create index if needed
+CREATE INDEX idx_custom ON jobs(your_column);
+```
+
+**Connection Pool Exhaustion:**
+```bash
+# Monitor pool usage
+SELECT count(*) as active_connections
+FROM pg_stat_activity
+WHERE datname = 'forge' AND state = 'active';
+
+# Increase pool size in .env
+DATABASE_POOL_SIZE=20
+DATABASE_MAX_OVERFLOW=30
+```
+
+### Production Checklist
+
+- [ ] PostgreSQL 14+ installed and running
+- [ ] Database user created with strong password
+- [ ] Database created with correct owner
+- [ ] `DATABASE_URL` configured in `.env`
+- [ ] Connection pool sizing configured
+- [ ] SSL/TLS enabled for remote connections
+- [ ] `pg_hba.conf` configured for secure access
+- [ ] Database migrations applied (`alembic upgrade head`)
+- [ ] Health check passing (`/health` endpoint)
+- [ ] Automated backups configured
+- [ ] Backup restoration tested
+- [ ] Monitoring and alerting set up
+- [ ] Connection pooling tuned for workload
+- [ ] Query performance optimized
+- [ ] Indexes verified with `EXPLAIN ANALYZE`
+
+### Additional Resources
+
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/14/)
+- [SQLAlchemy 2.0 Documentation](https://docs.sqlalchemy.org/en/20/)
+- [Alembic Documentation](https://alembic.sqlalchemy.org/)
+- [asyncpg Documentation](https://magicstack.github.io/asyncpg/)
+
 ## 📊 Telemetry
 
 Rake emits comprehensive telemetry events for monitoring and debugging:
