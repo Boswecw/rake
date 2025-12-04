@@ -8,9 +8,16 @@ Available Adapters:
     - SECEdgarAdapter: SEC EDGAR financial filings
     - URLScrapeAdapter: Web pages and articles
     - APIFetchAdapter: External REST/HTTP APIs
+    - DatabaseQueryAdapter: SQL database queries (PostgreSQL, MySQL, SQLite)
 
 Example:
-    >>> from sources import FileUploadAdapter, SECEdgarAdapter, URLScrapeAdapter, APIFetchAdapter
+    >>> from sources import (
+    ...     FileUploadAdapter,
+    ...     SECEdgarAdapter,
+    ...     URLScrapeAdapter,
+    ...     APIFetchAdapter,
+    ...     DatabaseQueryAdapter
+    ... )
     >>> file_adapter = FileUploadAdapter(tenant_id="tenant-123")
     >>> sec_adapter = SECEdgarAdapter(
     ...     user_agent="MyApp support@example.com",
@@ -24,6 +31,11 @@ Example:
     ...     user_agent="Rake/1.0 (API Bot)",
     ...     tenant_id="tenant-123"
     ... )
+    >>> db_adapter = DatabaseQueryAdapter(
+    ...     tenant_id="tenant-123",
+    ...     max_rows=1000,
+    ...     read_only=True
+    ... )
 """
 
 from sources.base import (
@@ -36,6 +48,7 @@ from sources.file_upload import FileUploadAdapter
 from sources.sec_edgar import SECEdgarAdapter
 from sources.url_scrape import URLScrapeAdapter
 from sources.api_fetch import APIFetchAdapter
+from sources.database_query import DatabaseQueryAdapter
 
 __all__ = [
     "BaseSourceAdapter",
@@ -46,4 +59,5 @@ __all__ = [
     "SECEdgarAdapter",
     "URLScrapeAdapter",
     "APIFetchAdapter",
+    "DatabaseQueryAdapter",
 ]

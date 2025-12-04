@@ -25,6 +25,7 @@ from sources.file_upload import FileUploadAdapter
 from sources.sec_edgar import SECEdgarAdapter
 from sources.url_scrape import URLScrapeAdapter
 from sources.api_fetch import APIFetchAdapter
+from sources.database_query import DatabaseQueryAdapter
 from services.telemetry_client import telemetry
 from config import settings
 
@@ -74,8 +75,7 @@ class FetchStage:
             DocumentSource.SEC_EDGAR.value: SECEdgarAdapter,
             DocumentSource.URL_SCRAPE.value: URLScrapeAdapter,
             DocumentSource.API_FETCH.value: APIFetchAdapter,
-            # Add more adapters as they're implemented:
-            # DocumentSource.DATABASE_QUERY.value: DatabaseQueryAdapter,
+            DocumentSource.DATABASE_QUERY.value: DatabaseQueryAdapter,
         }
         self.logger = logging.getLogger(__name__)
 

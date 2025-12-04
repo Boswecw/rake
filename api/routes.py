@@ -113,6 +113,15 @@ class JobSubmitRequest(BaseModel):
     next_page_path: Optional[str] = Field(None, description="JSON path to next page URL")
     max_api_pages: Optional[int] = Field(10, description="Max pages to fetch from API", ge=1, le=100)
 
+    # Database Query parameters
+    connection_string: Optional[str] = Field(None, description="Database connection string (postgresql://, mysql://, sqlite:///)")
+    query: Optional[str] = Field(None, description="SQL query to execute (SELECT only in read-only mode)")
+    query_params: Optional[Dict[str, Any]] = Field(None, description="Parameterized query parameters (for SQL injection prevention)")
+    db_content_column: Optional[str] = Field("content", description="Column name containing document content")
+    db_title_column: Optional[str] = Field("title", description="Column name containing document title")
+    db_id_column: Optional[str] = Field("id", description="Column name containing unique ID")
+    db_max_rows: Optional[int] = Field(None, description="Max rows to fetch (overrides config default)", ge=1, le=10000)
+
     # Common parameters
     scheduled: bool = Field(default=False, description="Whether job is scheduled")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
@@ -490,6 +499,18 @@ async def submit_job(
                 status_code=400,
                 detail="api_url is required for api_fetch source"
             )
+    elif request.source == "database_query":
+        # Database query requires connection string and query
+        if not request.connection_string:
+            raise HTTPException(
+                status_code=400,
+                detail="connection_string is required for database_query source"
+            )
+        if not request.query:
+            raise HTTPException(
+                status_code=400,
+                detail="query is required for database_query source"
+            )
 
     # Create job record
     job_data = {
@@ -577,6 +598,22 @@ async def submit_job(
         source_params["next_page_path"] = request.next_page_path
     if request.max_api_pages:
         source_params["max_pages"] = request.max_api_pages  # Map max_api_pages to max_pages
+
+    # Database Query params
+    if request.connection_string:
+        source_params["connection_string"] = request.connection_string
+    if request.query:
+        source_params["query"] = request.query
+    if request.query_params:
+        source_params["params"] = request.query_params  # Map query_params to params for adapter
+    if request.db_content_column:
+        source_params["content_column"] = request.db_content_column
+    if request.db_title_column:
+        source_params["title_column"] = request.db_title_column
+    if request.db_id_column:
+        source_params["id_column"] = request.db_id_column
+    if request.db_max_rows:
+        source_params["max_rows"] = request.db_max_rows
 
     # Common params
     if request.scheduled:

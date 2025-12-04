@@ -20,7 +20,7 @@ Rake handles the complete data ingestion workflow:
 - ✅ **SEC EDGAR**: Financial filings (10-K, 10-Q, 8-K, etc.)
 - ✅ **URL Scraping**: Web pages, articles, and documentation
 - ✅ **API Integration**: External REST/HTTP APIs with multiple auth methods
-- ⏳ **Database Queries**: Direct database ingestion (coming soon)
+- ✅ **Database Queries**: Direct SQL database ingestion (PostgreSQL, MySQL, SQLite)
 
 ## 🏗️ Architecture
 
@@ -483,6 +483,91 @@ curl -X POST http://localhost:8002/api/v1/jobs \
 
 **📚 Full Guide**: See [docs/API_FETCH_GUIDE.md](docs/API_FETCH_GUIDE.md) for complete documentation.
 
+## 🗄️ Database Queries
+
+Rake supports direct ingestion from SQL databases with built-in security features, connection pooling, and flexible column mapping.
+
+### Supported Databases
+
+- **PostgreSQL**: Production-grade with full query timeout support
+- **MySQL**: Wide compatibility for web applications
+- **SQLite**: File-based for development and embedded use
+
+### Security Features
+
+- **Read-Only Mode**: Only SELECT queries allowed by default (prevents accidental modifications)
+- **Query Validation**: Automatically blocks dangerous keywords (DROP, DELETE, INSERT, UPDATE, TRUNCATE, ALTER)
+- **Parameterized Queries**: SQL injection prevention via parameter binding
+- **Connection Pooling**: Efficient resource management with automatic cleanup
+- **Query Timeouts**: Prevent runaway queries with configurable limits
+- **Password Masking**: Automatic password redaction in logs
+
+### Quick Start
+
+**1. Fetch from PostgreSQL:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "database_query",
+    "tenant_id": "tenant-123",
+    "connection_string": "postgresql://readonly:password@localhost:5432/mydb",
+    "query": "SELECT id, title, content FROM articles WHERE published = true LIMIT 100",
+    "db_content_column": "content",
+    "db_title_column": "title",
+    "db_id_column": "id"
+  }'
+```
+
+**2. Fetch with parameterized query (SQL injection prevention):**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "database_query",
+    "tenant_id": "tenant-123",
+    "connection_string": "mysql://user:pass@localhost:3306/support_db",
+    "query": "SELECT ticket_id, subject, description FROM tickets WHERE status = :status AND priority >= :priority",
+    "query_params": {
+      "status": "open",
+      "priority": 3
+    },
+    "db_content_column": "description",
+    "db_title_column": "subject",
+    "db_id_column": "ticket_id",
+    "db_max_rows": 500
+  }'
+```
+
+**3. Fetch from SQLite:**
+```bash
+curl -X POST http://localhost:8002/api/v1/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "database_query",
+    "tenant_id": "tenant-123",
+    "connection_string": "sqlite:///data/reviews.db",
+    "query": "SELECT review_id, product_name, review_text FROM reviews WHERE rating >= 4 LIMIT 200",
+    "db_content_column": "review_text",
+    "db_title_column": "product_name",
+    "db_id_column": "review_id"
+  }'
+```
+
+### Features
+
+- ✅ Multi-database support (PostgreSQL, MySQL, SQLite)
+- ✅ Security-first design (read-only mode, query validation, SQL injection prevention)
+- ✅ Connection pooling and caching for performance
+- ✅ Parameterized queries with named parameters (`:param_name`)
+- ✅ Flexible column mapping (configure content, title, ID columns)
+- ✅ Query timeout enforcement (prevents runaway queries)
+- ✅ Row limit protection (hard limit: 10,000 rows)
+- ✅ Password masking in logs (automatic security)
+- ✅ Full pipeline integration (CLEAN → CHUNK → EMBED → STORE)
+
+**📚 Full Guide**: See [docs/DATABASE_QUERY_GUIDE.md](docs/DATABASE_QUERY_GUIDE.md) for complete documentation.
+
 ## 📊 Telemetry
 
 Rake emits comprehensive telemetry events for monitoring and debugging:
@@ -898,6 +983,7 @@ Rake integrates with:
 - [SEC EDGAR Guide](docs/SEC_EDGAR_GUIDE.md) - Complete SEC EDGAR integration guide
 - [URL Scraping Guide](docs/URL_SCRAPE_GUIDE.md) - Complete URL scraping integration guide
 - [API Integration Guide](docs/API_FETCH_GUIDE.md) - Complete API integration guide
+- [Database Query Guide](docs/DATABASE_QUERY_GUIDE.md) - Complete database integration guide
 - [Quick Start Guide](QUICKSTART.md) - 5-minute setup guide
 - [Testing Guide](tests/README.md) - Testing documentation
 
@@ -930,6 +1016,7 @@ For issues and questions:
 - ✅ **SEC EDGAR Integration**: Financial filings (10-K, 10-Q, 8-K, etc.)
 - ✅ **URL Scraping Integration**: Web pages with intelligent content extraction
 - ✅ **API Integration**: External REST/HTTP APIs with multiple auth methods
+- ✅ **Database Queries**: Direct SQL database ingestion (PostgreSQL, MySQL, SQLite)
 - ✅ **Multi-tenant Support**: JWT authentication & tenant context
 - ✅ **Job Scheduling**: APScheduler with cron/interval support
 - ✅ **Retry Logic**: Exponential backoff for resilience
@@ -940,15 +1027,12 @@ For issues and questions:
 - ✅ **Type Safety**: 100% type hints with mypy validation
 - ✅ **Documentation**: Complete API & implementation docs
 
-### In Development
-- ⏳ **Database Queries**: Direct database ingestion (planned)
-
 ### Statistics
-- **Total Lines**: ~14,000+ lines of production code
+- **Total Lines**: ~15,200+ lines of production code
 - **Test Coverage**: 80%+
 - **API Endpoints**: 6 REST endpoints
-- **Data Sources**: 4 (File Upload, SEC EDGAR, URL Scraping, API Integration)
+- **Data Sources**: 5 (File Upload, SEC EDGAR, URL Scraping, API Integration, Database Queries)
 - **Pipeline Stages**: 5
-- **Documentation Files**: 14+
+- **Documentation Files**: 15+
 
 **Status**: 🚀 Production Ready

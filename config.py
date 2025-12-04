@@ -165,6 +165,36 @@ class Settings(BaseSettings):
         description="Verify SSL certificates for API requests"
     )
 
+    # Database Query Configuration
+    DB_QUERY_MAX_ROWS: int = Field(
+        default=1000,
+        ge=1,
+        le=10000,
+        description="Maximum rows to fetch per database query"
+    )
+    DB_QUERY_READ_ONLY: bool = Field(
+        default=True,
+        description="Only allow SELECT queries (security: prevent modifications)"
+    )
+    DB_QUERY_TIMEOUT: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Database query timeout in seconds"
+    )
+    DB_QUERY_POOL_SIZE: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Database connection pool size"
+    )
+    DB_QUERY_MAX_OVERFLOW: int = Field(
+        default=10,
+        ge=0,
+        le=50,
+        description="Maximum overflow connections beyond pool size"
+    )
+
     # Pipeline Configuration
     MAX_WORKERS: int = Field(default=4, ge=1, le=32, description="Max concurrent pipeline workers")
     RETRY_ATTEMPTS: int = Field(default=3, ge=1, le=10)
