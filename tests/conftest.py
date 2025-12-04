@@ -18,6 +18,7 @@ from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 
 # Add parent directory to path for imports
@@ -291,7 +292,7 @@ def test_env(monkeypatch):
 # Database Fixtures
 # ============================================================================
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_db() -> AsyncGenerator[DatabaseService, None]:
     """Create test database with SQLite in-memory backend.
 
@@ -323,7 +324,7 @@ async def test_db() -> AsyncGenerator[DatabaseService, None]:
         await db.close()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_db_with_jobs(test_db: DatabaseService) -> AsyncGenerator[DatabaseService, None]:
     """Create test database pre-populated with sample jobs.
 

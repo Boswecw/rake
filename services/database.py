@@ -80,13 +80,22 @@ class DatabaseService:
             >>> await db.init()
         """
         try:
-            self._engine = create_async_engine(
-                self.database_url,
-                pool_size=settings.DATABASE_POOL_SIZE,
-                max_overflow=settings.DATABASE_MAX_OVERFLOW,
-                pool_pre_ping=True,
-                echo=settings.ENVIRONMENT == "development"
-            )
+            # SQLite doesn't support pool_size and max_overflow parameters
+            is_sqlite = "sqlite" in self.database_url.lower()
+
+            if is_sqlite:
+                self._engine = create_async_engine(
+                    self.database_url,
+                    echo=settings.ENVIRONMENT == "development"
+                )
+            else:
+                self._engine = create_async_engine(
+                    self.database_url,
+                    pool_size=settings.DATABASE_POOL_SIZE,
+                    max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                    pool_pre_ping=True,
+                    echo=settings.ENVIRONMENT == "development"
+                )
 
             self._session_factory = async_sessionmaker(
                 self._engine,
@@ -184,6 +193,12 @@ class DatabaseService:
                     status=job_data.get("status", JobStatus.PENDING),
                     tenant_id=job_data.get("tenant_id"),
                     created_at=job_data.get("created_at", datetime.utcnow()),
+                    completed_at=job_data.get("completed_at"),
+                    duration_ms=job_data.get("duration_ms"),
+                    documents_stored=job_data.get("documents_stored"),
+                    chunks_created=job_data.get("chunks_created"),
+                    embeddings_generated=job_data.get("embeddings_generated"),
+                    error_message=job_data.get("error_message"),
                     stages_completed=job_data.get("stages_completed", []),
                     source_params=job_data.get("source_params", {})
                 )
