@@ -4,6 +4,38 @@
 
 Rake is a production-ready SaaS backend that fetches documents from multiple sources, processes them through a 5-stage pipeline, and stores embeddings in DataForge for semantic search.
 
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
+[![PostgreSQL 14+](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)](https://www.postgresql.org/)
+[![Test Coverage](https://img.shields.io/badge/coverage-80%25+-brightgreen.svg)](docs/TESTING.md)
+[![Production Ready](https://img.shields.io/badge/status-production%20ready-success.svg)](docs/archive/IMPLEMENTATION_COMPLETE.md)
+
+---
+
+## 📚 Table of Contents
+
+- [Overview](#-overview)
+- [Quick Start](#-quick-start)
+- [Architecture](#%EF%B8%8F-architecture)
+- [Data Sources](#-data-sources)
+  - [File Uploads](#file-uploads)
+  - [SEC EDGAR](#-sec-edgar-integration)
+  - [URL Scraping](#-url-scraping-integration)
+  - [API Integration](#-api-integration)
+  - [Database Queries](#%EF%B8%8F-database-queries)
+- [API Endpoints](#-api-endpoints)
+- [Database Setup](#%EF%B8%8F-database-setup--configuration)
+- [Pipeline Details](#-pipeline-details)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+  - [Docker](#-docker-deployment)
+  - [CI/CD](#cicd-pipeline)
+- [Documentation](#-documentation)
+- [Contributing](#-contributing)
+- [Support](#-support)
+
+---
+
 ## 🎯 Overview
 
 Rake handles the complete data ingestion workflow:
@@ -1394,22 +1426,67 @@ Rake integrates with:
 
 ## 📚 Documentation
 
+### Getting Started
+- 📖 **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
+- 🏗️ **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and components
+- 🤝 **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines and best practices
+
 ### API Documentation
-- [Interactive API Docs](http://localhost:8002/api/docs) - Swagger UI
-- [ReDoc](http://localhost:8002/api/redoc) - Alternative API documentation
+- 🌐 **[Interactive API Docs](http://localhost:8002/api/docs)** - Swagger UI (when running)
+- 📘 **[ReDoc](http://localhost:8002/api/redoc)** - Alternative API documentation (when running)
 
-### Feature Guides
-- [SEC EDGAR Guide](docs/SEC_EDGAR_GUIDE.md) - Complete SEC EDGAR integration guide
-- [URL Scraping Guide](docs/URL_SCRAPE_GUIDE.md) - Complete URL scraping integration guide
-- [API Integration Guide](docs/API_FETCH_GUIDE.md) - Complete API integration guide
-- [Database Query Guide](docs/DATABASE_QUERY_GUIDE.md) - Complete database integration guide
-- [Quick Start Guide](QUICKSTART.md) - 5-minute setup guide
-- [Testing Guide](tests/README.md) - Testing documentation
+### Data Source Guides
+- 📊 **[SEC EDGAR Guide](docs/SEC_EDGAR_GUIDE.md)** - Financial filings integration
+- 🌐 **[URL Scraping Guide](docs/URL_SCRAPE_GUIDE.md)** - Web content extraction
+- 🔌 **[API Integration Guide](docs/API_FETCH_GUIDE.md)** - External API ingestion
+- 🗄️ **[Database Query Guide](docs/DATABASE_QUERY_GUIDE.md)** - Direct database ingestion
 
-### Implementation Details
-- [Implementation Complete](IMPLEMENTATION_COMPLETE.md) - Full implementation summary
-- [Docker & CI/CD](DOCKER_CICD_COMPLETE.md) - Containerization guide
-- [SEC EDGAR Implementation](SEC_EDGAR_IMPLEMENTATION_COMPLETE.md) - SEC integration details
+### Development & Testing
+- 🧪 **[Testing Guide](docs/TESTING.md)** - Comprehensive test documentation (77/77 passing)
+- 🗄️ **[Database Setup](#%EF%B8%8F-database-setup--configuration)** - PostgreSQL & SQLite configuration
+- 🐛 **[Debugging](#-debugging)** - Troubleshooting and correlation IDs
+
+### Deployment
+- 🐳 **[Docker Deployment](#-docker-deployment)** - Containerization guide
+- 🔄 **[CI/CD Pipeline](#cicd-pipeline)** - Automated testing & deployment
+
+### Implementation History (Archive)
+- 📋 **[Implementation Complete](docs/archive/IMPLEMENTATION_COMPLETE.md)** - Full implementation summary
+- 📊 **[Technical Due Diligence](docs/archive/TECHNICAL_DUE_DILIGENCE_REPORT.md)** - Technical audit report
+- 🐳 **[Docker & CI/CD Complete](docs/archive/DOCKER_CICD_COMPLETE.md)** - Containerization completion
+- 📝 **[Feature Implementation Reports](docs/archive/)** - Detailed feature completion docs
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for:
+
+- Development setup and workflow
+- Coding standards and best practices
+- Testing requirements (80%+ coverage)
+- Pull request process
+- Code of conduct
+
+### Quick Development Setup
+
+```bash
+# 1. Fork and clone
+git clone https://github.com/yourusername/rake.git
+cd rake
+
+# 2. Set up environment
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Run tests
+pytest --cov
+
+# 4. Make changes and submit PR
+git checkout -b feature/your-feature
+# Make changes...
+git commit -m "feat: add your feature"
+git push origin feature/your-feature
+```
 
 ## 📄 License
 
