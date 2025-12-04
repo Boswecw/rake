@@ -380,22 +380,233 @@ pre-commit run --all-files
 - [ ] Set up database backups
 - [ ] Review security settings
 
-### Docker Deployment
+### 🐳 Docker Deployment
 
-```dockerfile
-# Dockerfile (to be created)
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
-```
+Rake includes production-ready Docker configuration with multi-stage builds and security best practices.
+
+#### Quick Start with Docker Compose
+
+**1. Start all services (Rake + PostgreSQL + pgAdmin):**
 
 ```bash
-# Build and run
+# Set required environment variables
+export OPENAI_API_KEY=sk-your-key-here
+
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f rake
+```
+
+**2. Access services:**
+- Rake API: http://localhost:8002
+- API Docs: http://localhost:8002/api/docs
+- pgAdmin: http://localhost:5050 (admin@rake.local / admin)
+
+**3. Stop services:**
+```bash
+docker-compose down
+# Or with volume cleanup
+docker-compose down -v
+```
+
+#### Build and Run with Docker Only
+
+**1. Build the image:**
+```bash
 docker build -t rake:latest .
-docker run -p 8002:8002 --env-file .env rake:latest
+```
+
+**2. Run container:**
+```bash
+docker run -d \
+  --name rake \
+  -p 8002:8002 \
+  -e OPENAI_API_KEY=sk-your-key-here \
+  -e DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/forge \
+  -e DATAFORGE_BASE_URL=http://host.docker.internal:8001 \
+  rake:latest
+```
+
+**3. Check logs:**
+```bash
+docker logs -f rake
+```
+
+#### Docker Compose Services
+
+The `docker-compose.yml` includes:
+
+- **rake**: Main application service
+- **postgres**: PostgreSQL 14+ with pgvector extension
+- **pgadmin**: Database administration UI (optional, use `--profile tools`)
+
+```bash
+# Start with pgAdmin
+docker-compose --profile tools up -d
+```
+
+#### Production Deployment
+
+**Using Docker Swarm:**
+```bash
+# Initialize swarm
+docker swarm init
+
+# Deploy stack
+docker stack deploy -c docker-compose.yml rake-stack
+
+# Check services
+docker service ls
+docker service logs rake-stack_rake
+```
+
+**Using Kubernetes:**
+```bash
+# Build and push to registry
+docker build -t your-registry/rake:v1.0.0 .
+docker push your-registry/rake:v1.0.0
+
+# Deploy with kubectl
+kubectl apply -f k8s/deployment.yml
+kubectl apply -f k8s/service.yml
+```
+
+**Environment Variables in Docker:**
+
+Create a `.env` file for docker-compose:
+```bash
+# .env file
+OPENAI_API_KEY=sk-your-actual-key
+DATABASE_URL=postgresql+asyncpg://rake_user:rake_dev_password@postgres:5432/forge
+DATAFORGE_BASE_URL=http://host.docker.internal:8001
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+MAX_WORKERS=4
+JWT_SECRET_KEY=your-secret-key-here
+```
+
+#### Docker Image Details
+
+**Multi-stage build:**
+- Stage 1: Builder - Compiles dependencies
+- Stage 2: Runtime - Minimal production image
+
+**Security features:**
+- Non-root user (`rake` uid 1000)
+- Minimal base image (python:3.11-slim)
+- No unnecessary build tools in final image
+- Health check configuration
+
+**Image size:** ~250MB (optimized with multi-stage build)
+
+#### Health Checks
+
+Docker includes built-in health monitoring:
+```bash
+# Check container health
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# Health check endpoint
+curl http://localhost:8002/health
+```
+
+#### Volumes
+
+Persistent data volumes:
+- `rake_postgres_data`: PostgreSQL database
+- `rake_logs`: Application logs
+- `rake_pgadmin_data`: pgAdmin configuration
+
+```bash
+# List volumes
+docker volume ls
+
+# Backup database
+docker exec rake-postgres pg_dump -U rake_user forge > backup.sql
+
+# Restore database
+docker exec -i rake-postgres psql -U rake_user forge < backup.sql
+```
+
+### CI/CD Pipeline
+
+Rake includes GitHub Actions workflows for automated testing and deployment.
+
+#### Workflows
+
+**1. Main CI/CD Pipeline (`.github/workflows/ci-cd.yml`):**
+- Linting and type checking (black, isort, flake8, mypy)
+- Unit tests with coverage
+- Integration tests with PostgreSQL
+- Docker image build and push to GitHub Container Registry
+- Security scanning with Trivy
+- Automated deployment on version tags
+
+**2. Quick Test Pipeline (`.github/workflows/quick-test.yml`):**
+- Fast unit tests on every commit
+- Quick validation before full CI/CD
+
+#### Setup GitHub Actions
+
+**1. Configure secrets:**
+
+Go to Settings → Secrets and variables → Actions, add:
+- `OPENAI_API_KEY`: Your OpenAI API key (for integration tests)
+
+**2. Enable GitHub Container Registry:**
+
+```bash
+# Login to GHCR
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+# Images are automatically published to:
+# ghcr.io/your-username/your-repo/rake:latest
+# ghcr.io/your-username/your-repo/rake:v1.0.0
+```
+
+**3. Trigger deployment:**
+
+```bash
+# Create and push version tag
+git tag v1.0.0
+git push origin v1.0.0
+
+# GitHub Actions will:
+# 1. Run full test suite
+# 2. Build Docker image
+# 3. Push to GHCR
+# 4. Deploy to production (if configured)
+```
+
+#### CI/CD Features
+
+✅ Automated testing (unit + integration)
+✅ Code quality checks (linting, type checking)
+✅ Security vulnerability scanning
+✅ Docker image optimization
+✅ Automated deployment on tags
+✅ Coverage reporting to Codecov
+
+#### Manual Deployment
+
+For manual production deployment:
+
+```bash
+# Pull latest image
+docker pull ghcr.io/your-username/your-repo/rake:latest
+
+# Stop old container
+docker stop rake && docker rm rake
+
+# Run new version
+docker run -d \
+  --name rake \
+  -p 8002:8002 \
+  --env-file .env \
+  --restart unless-stopped \
+  ghcr.io/your-username/your-repo/rake:latest
 ```
 
 ## 🤝 Integration with Forge Ecosystem

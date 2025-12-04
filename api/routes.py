@@ -46,10 +46,14 @@ class JobSubmitRequest(BaseModel):
     """Request schema for submitting a new ingestion job.
 
     Attributes:
-        source: Source type (file_upload, url_scrape, etc.)
+        source: Source type (file_upload, url_scrape, sec_edgar, etc.)
         tenant_id: Multi-tenant identifier
         file_path: Path to file (for file_upload source)
         url: URL to scrape (for url_scrape source)
+        cik: Company CIK number (for sec_edgar source)
+        ticker: Stock ticker symbol (for sec_edgar source)
+        form_type: SEC filing form type (for sec_edgar source)
+        count: Number of filings to fetch (for sec_edgar source)
         scheduled: Whether job is scheduled (default: False)
         metadata: Additional job metadata
 
@@ -59,14 +63,33 @@ class JobSubmitRequest(BaseModel):
         ...     tenant_id="tenant-123",
         ...     file_path="/path/to/document.pdf"
         ... )
+        >>> request = JobSubmitRequest(
+        ...     source="sec_edgar",
+        ...     tenant_id="tenant-123",
+        ...     ticker="AAPL",
+        ...     form_type="10-K",
+        ...     count=1
+        ... )
     """
 
     model_config = ConfigDict(extra="allow")
 
-    source: str = Field(..., description="Source type (file_upload, url_scrape, etc.)")
+    source: str = Field(..., description="Source type (file_upload, url_scrape, sec_edgar, etc.)")
     tenant_id: Optional[str] = Field(None, description="Multi-tenant identifier")
+
+    # File upload parameters
     file_path: Optional[str] = Field(None, description="File path for file_upload source")
+
+    # URL scrape parameters
     url: Optional[str] = Field(None, description="URL for url_scrape source")
+
+    # SEC EDGAR parameters
+    cik: Optional[str] = Field(None, description="Company CIK number (for sec_edgar source)")
+    ticker: Optional[str] = Field(None, description="Stock ticker symbol (for sec_edgar source)")
+    form_type: Optional[str] = Field(None, description="SEC filing form type (e.g., 10-K, 10-Q)")
+    count: Optional[int] = Field(1, description="Number of filings to fetch", ge=1, le=10)
+
+    # Common parameters
     scheduled: bool = Field(default=False, description="Whether job is scheduled")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
@@ -427,6 +450,13 @@ async def submit_job(
             status_code=400,
             detail="url is required for url_scrape source"
         )
+    elif request.source == "sec_edgar":
+        # SEC EDGAR requires either CIK or ticker
+        if not request.cik and not request.ticker:
+            raise HTTPException(
+                status_code=400,
+                detail="Either cik or ticker is required for sec_edgar source"
+            )
 
     # Create job record
     job_data = {

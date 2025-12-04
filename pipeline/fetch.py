@@ -22,7 +22,9 @@ from uuid import uuid4
 from models.document import RawDocument, DocumentSource
 from sources.base import BaseSourceAdapter, FetchError
 from sources.file_upload import FileUploadAdapter
+from sources.sec_edgar import SECEdgarAdapter
 from services.telemetry_client import telemetry
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,7 @@ class FetchStage:
         """
         self.adapters: Dict[str, type[BaseSourceAdapter]] = {
             DocumentSource.FILE_UPLOAD.value: FileUploadAdapter,
+            DocumentSource.SEC_EDGAR.value: SECEdgarAdapter,
             # Add more adapters as they're implemented:
             # DocumentSource.URL_SCRAPE.value: URLScrapeAdapter,
             # DocumentSource.API_FETCH.value: APIFetchAdapter,
@@ -115,6 +118,21 @@ class FetchStage:
             )
 
         adapter_class = self.adapters[source]
+
+        # SEC EDGAR adapter requires user_agent
+        if source == DocumentSource.SEC_EDGAR.value:
+            user_agent = settings.SEC_EDGAR_USER_AGENT
+            if not user_agent:
+                raise FetchStageError(
+                    "SEC_EDGAR_USER_AGENT configuration is required for SEC EDGAR source",
+                    source=source
+                )
+            return adapter_class(
+                user_agent=user_agent,
+                tenant_id=tenant_id,
+                rate_limit_delay=settings.SEC_EDGAR_RATE_LIMIT
+            )
+
         return adapter_class(tenant_id=tenant_id)
 
     async def execute(

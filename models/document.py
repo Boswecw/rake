@@ -37,6 +37,7 @@ class DocumentSource(str, Enum):
         API_FETCH: External API integration
         DATABASE_QUERY: Database query results
         SCHEDULED_JOB: Scheduled ingestion task
+        SEC_EDGAR: SEC EDGAR financial filings
 
     Example:
         >>> source = DocumentSource.FILE_UPLOAD
@@ -48,6 +49,7 @@ class DocumentSource(str, Enum):
     API_FETCH = "api_fetch"
     DATABASE_QUERY = "database_query"
     SCHEDULED_JOB = "scheduled_job"
+    SEC_EDGAR = "sec_edgar"
 
 
 class ProcessingStatus(str, Enum):

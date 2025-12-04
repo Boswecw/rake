@@ -91,6 +91,18 @@ class Settings(BaseSettings):
     # Anthropic (optional, for future use)
     ANTHROPIC_API_KEY: Optional[str] = None
 
+    # SEC EDGAR Configuration
+    SEC_EDGAR_USER_AGENT: str = Field(
+        default="",
+        description="User-Agent for SEC EDGAR (must include contact info)"
+    )
+    SEC_EDGAR_RATE_LIMIT: float = Field(
+        default=0.1,
+        ge=0.1,
+        le=1.0,
+        description="Rate limit delay in seconds (0.1 = 10 req/s max)"
+    )
+
     # Pipeline Configuration
     MAX_WORKERS: int = Field(default=4, ge=1, le=32, description="Max concurrent pipeline workers")
     RETRY_ATTEMPTS: int = Field(default=3, ge=1, le=10)
