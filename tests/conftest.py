@@ -23,12 +23,22 @@ from fastapi.testclient import TestClient
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Set test environment variables BEFORE importing application code
+# This ensures the app uses SQLite for testing
+os.environ["ENVIRONMENT"] = "development"  # Use development mode for tests
+os.environ["LOG_LEVEL"] = "DEBUG"
+os.environ["OPENAI_API_KEY"] = "sk-test-key"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["JWT_SECRET_KEY"] = "test_secret_key_minimum_32_characters_long_for_jwt"
+
 from main import app
 from config import settings
 from pipeline.orchestrator import PipelineOrchestrator
 from services.telemetry_client import TelemetryClient
 from services.dataforge_client import DataForgeClient
 from services.embedding_service import EmbeddingService
+from services.database import DatabaseService
+from models.job import Base
 
 
 # ============================================================================
@@ -269,12 +279,93 @@ def test_env(monkeypatch):
 
     Example:
         >>> def test_config(test_env):
-        ...     assert settings.ENVIRONMENT == "testing"
+        ...     assert settings.ENVIRONMENT == "development"
     """
-    monkeypatch.setenv("ENVIRONMENT", "testing")
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
-    monkeypatch.setenv("DATABASE_URL", "postgresql://test:test@localhost/test")
+    monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+
+
+# ============================================================================
+# Database Fixtures
+# ============================================================================
+
+@pytest.fixture
+async def test_db() -> AsyncGenerator[DatabaseService, None]:
+    """Create test database with SQLite in-memory backend.
+
+    Creates tables, yields database service, and cleans up after tests.
+
+    Yields:
+        DatabaseService instance configured for testing
+
+    Example:
+        >>> async def test_job_creation(test_db):
+        ...     job = await test_db.create_job({
+        ...         "job_id": "test-123",
+        ...         "source": "file_upload"
+        ...     })
+        ...     assert job.job_id == "test-123"
+    """
+    # Create test database with SQLite
+    db = DatabaseService(database_url="sqlite+aiosqlite:///:memory:")
+    await db.init()
+
+    # Create tables
+    async with db._engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    try:
+        yield db
+    finally:
+        # Cleanup
+        await db.close()
+
+
+@pytest.fixture
+async def test_db_with_jobs(test_db: DatabaseService) -> AsyncGenerator[DatabaseService, None]:
+    """Create test database pre-populated with sample jobs.
+
+    Yields:
+        DatabaseService with 3 sample jobs
+
+    Example:
+        >>> async def test_list_jobs(test_db_with_jobs):
+        ...     jobs, total = await test_db_with_jobs.list_jobs()
+        ...     assert total == 3
+    """
+    # Create sample jobs
+    sample_jobs = [
+        {
+            "job_id": "job-test-1",
+            "source": "file_upload",
+            "status": "completed",
+            "tenant_id": "tenant-test",
+            "chunks_created": 10,
+            "source_params": {}
+        },
+        {
+            "job_id": "job-test-2",
+            "source": "url_scrape",
+            "status": "pending",
+            "tenant_id": "tenant-test",
+            "source_params": {}
+        },
+        {
+            "job_id": "job-test-3",
+            "source": "api_fetch",
+            "status": "failed",
+            "tenant_id": "tenant-other",
+            "error_message": "Test error",
+            "source_params": {}
+        },
+    ]
+
+    for job_data in sample_jobs:
+        await test_db.create_job(job_data)
+
+    yield test_db
 
 
 # ============================================================================
