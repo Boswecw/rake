@@ -1,5 +1,9 @@
 # Rake V1 - Automated Data Ingestion Pipeline
 
+<p align="center">
+  <img src="Rake.png" alt="Rake Logo" width="600"/>
+</p>
+
 **Automated data ingestion pipeline for the Forge Ecosystem**
 
 Rake is a production-ready SaaS backend that fetches documents from multiple sources, processes them through a 5-stage pipeline, and stores embeddings in DataForge for semantic search.
