@@ -30,7 +30,7 @@ from pipeline.clean import CleanStage, CleanStageError
 from pipeline.chunk import ChunkStage, ChunkStageError
 from pipeline.embed import EmbedStage, EmbedStageError
 from pipeline.store import StoreStage, StoreStageError
-from services.telemetry_client import telemetry
+from services.telemetry_db_client import telemetry
 
 logger = logging.getLogger(__name__)
 

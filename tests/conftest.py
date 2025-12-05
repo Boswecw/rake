@@ -35,7 +35,7 @@ os.environ["JWT_SECRET_KEY"] = "test_secret_key_minimum_32_characters_long_for_j
 from main import app
 from config import settings
 from pipeline.orchestrator import PipelineOrchestrator
-from services.telemetry_client import TelemetryClient
+from services.telemetry_db_client import TelemetryDatabaseClient
 from services.dataforge_client import DataForgeClient
 from services.embedding_service import EmbeddingService
 from services.database import DatabaseService
@@ -88,17 +88,17 @@ def client() -> Generator[TestClient, None, None]:
 # ============================================================================
 
 @pytest.fixture
-def mock_telemetry() -> TelemetryClient:
+def mock_telemetry() -> TelemetryDatabaseClient:
     """Create a mock telemetry client.
 
     Returns:
-        Mocked TelemetryClient
+        Mocked TelemetryDatabaseClient
 
     Example:
         >>> def test_job(mock_telemetry):
         ...     await mock_telemetry.emit_job_started(...)
     """
-    telemetry = TelemetryClient(enabled=False)
+    telemetry = TelemetryDatabaseClient(enabled=False)
     return telemetry
 
 

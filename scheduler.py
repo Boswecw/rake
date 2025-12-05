@@ -44,7 +44,7 @@ from apscheduler.events import (
 
 from config import settings
 from pipeline.orchestrator import PipelineOrchestrator, PipelineError
-from services.telemetry_client import telemetry
+from services.telemetry_db_client import telemetry
 
 logger = logging.getLogger(__name__)
 

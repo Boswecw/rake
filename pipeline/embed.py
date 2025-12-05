@@ -20,7 +20,7 @@ from uuid import uuid4
 
 from models.document import Chunk, Embedding
 from services.embedding_service import EmbeddingService, EmbeddingError
-from services.telemetry_client import telemetry
+from services.telemetry_db_client import telemetry
 
 logger = logging.getLogger(__name__)
 

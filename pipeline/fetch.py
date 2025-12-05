@@ -26,7 +26,7 @@ from sources.sec_edgar import SECEdgarAdapter
 from sources.url_scrape import URLScrapeAdapter
 from sources.api_fetch import APIFetchAdapter
 from sources.database_query import DatabaseQueryAdapter
-from services.telemetry_client import telemetry
+from services.telemetry_db_client import telemetry
 from config import settings
 
 logger = logging.getLogger(__name__)

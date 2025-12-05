@@ -32,7 +32,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field, ConfigDict
 
 from pipeline.orchestrator import PipelineOrchestrator, PipelineError
-from services.telemetry_client import telemetry
+from services.telemetry_db_client import telemetry
 from services.database import get_database, DatabaseError
 from models.job import JobStatus
 

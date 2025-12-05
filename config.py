@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     # DataForge Service
     DATAFORGE_BASE_URL: str = "http://localhost:8001"
     DATAFORGE_TIMEOUT: int = Field(default=30, ge=1, le=300)
+    DATAFORGE_DB_PATH: str = Field(
+        default="/home/charles/projects/Coding2025/Forge/DataForge/dataforge.db",
+        description="Path to DataForge SQLite database for telemetry"
+    )
 
     # OpenAI
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key for embeddings")

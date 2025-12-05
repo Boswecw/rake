@@ -21,7 +21,7 @@ from datetime import datetime
 
 from models.document import Embedding, StoredDocument, DocumentSource, ProcessingStatus
 from services.dataforge_client import DataForgeClient, DataForgeError
-from services.telemetry_client import telemetry
+from services.telemetry_db_client import telemetry
 
 logger = logging.getLogger(__name__)
 

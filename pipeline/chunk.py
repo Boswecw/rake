@@ -25,7 +25,7 @@ from typing import List, Optional
 from uuid import uuid4
 
 from models.document import CleanedDocument, Chunk
-from services.telemetry_client import telemetry
+from services.telemetry_db_client import telemetry
 from config import settings
 
 logger = logging.getLogger(__name__)
