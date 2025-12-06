@@ -28,6 +28,14 @@ from models.document import CleanedDocument, Chunk
 from services.telemetry_db_client import telemetry
 from config import settings
 
+# Import semantic chunker for advanced chunking strategies
+try:
+    from pipeline.semantic_chunker import SemanticChunker, ChunkingStrategy
+    SEMANTIC_CHUNKING_AVAILABLE = True
+except ImportError:
+    SEMANTIC_CHUNKING_AVAILABLE = False
+    logger.warning("Semantic chunking not available (missing dependencies)")
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,7 +78,9 @@ class ChunkStage:
         overlap: Optional[int] = None,
         respect_sentences: bool = True,
         respect_paragraphs: bool = True,
-        min_chunk_size: int = 50
+        min_chunk_size: int = 50,
+        strategy: str = "legacy",
+        similarity_threshold: float = 0.5
     ):
         """Initialize chunk stage.
 
@@ -80,24 +90,52 @@ class ChunkStage:
             respect_sentences: Whether to avoid splitting sentences
             respect_paragraphs: Whether to keep paragraphs together
             min_chunk_size: Minimum chunk size in tokens
+            strategy: Chunking strategy - "legacy", "token", "semantic", or "hybrid"
+            similarity_threshold: Threshold for semantic boundaries (0-1)
 
         Example:
-            >>> stage = ChunkStage(
-            ...     chunk_size=500,
-            ...     overlap=50,
-            ...     respect_sentences=True
-            ... )
+            >>> # Legacy chunking (original implementation)
+            >>> stage = ChunkStage(chunk_size=500, strategy="legacy")
+            >>>
+            >>> # Semantic chunking (topic-aware)
+            >>> stage = ChunkStage(chunk_size=500, strategy="semantic")
+            >>>
+            >>> # Hybrid (best of both)
+            >>> stage = ChunkStage(chunk_size=500, strategy="hybrid")
         """
         self.chunk_size = chunk_size or settings.CHUNK_SIZE
         self.overlap = overlap or settings.CHUNK_OVERLAP
         self.respect_sentences = respect_sentences
         self.respect_paragraphs = respect_paragraphs
         self.min_chunk_size = min_chunk_size
+        self.strategy = strategy
+        self.similarity_threshold = similarity_threshold
         self.logger = logging.getLogger(__name__)
 
         # Validate chunk size and overlap
         if self.overlap >= self.chunk_size:
             raise ValueError(f"Overlap ({self.overlap}) must be less than chunk_size ({self.chunk_size})")
+
+        # Initialize semantic chunker if needed
+        self.semantic_chunker = None
+        if strategy in ("token", "semantic", "hybrid") and SEMANTIC_CHUNKING_AVAILABLE:
+            strategy_map = {
+                "token": ChunkingStrategy.TOKEN_BASED,
+                "semantic": ChunkingStrategy.SEMANTIC,
+                "hybrid": ChunkingStrategy.HYBRID
+            }
+            self.semantic_chunker = SemanticChunker(
+                chunk_size=self.chunk_size,
+                overlap=self.overlap,
+                strategy=strategy_map[strategy],
+                similarity_threshold=similarity_threshold
+            )
+            self.logger.info(f"Initialized semantic chunker with strategy: {strategy}")
+        elif strategy != "legacy":
+            self.logger.warning(
+                f"Semantic chunking strategy '{strategy}' requested but not available. "
+                "Falling back to legacy implementation."
+            )
 
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count for text.
@@ -397,7 +435,12 @@ class ChunkStage:
                 )
 
                 # Create chunks for this document
-                doc_chunks = self._create_chunks(doc)
+                # Use semantic chunker if available, otherwise fall back to legacy
+                if self.semantic_chunker:
+                    doc_chunks = await self.semantic_chunker.chunk_document(doc)
+                else:
+                    doc_chunks = self._create_chunks(doc)
+
                 all_chunks.extend(doc_chunks)
 
                 self.logger.debug(
@@ -431,7 +474,9 @@ class ChunkStage:
                     "chunk_count": len(all_chunks),
                     "total_tokens": total_tokens,
                     "avg_chunk_size": round(avg_chunk_size, 2),
-                    "chunks_per_document": round(len(all_chunks) / len(documents), 2) if documents else 0
+                    "chunks_per_document": round(len(all_chunks) / len(documents), 2) if documents else 0,
+                    "chunking_strategy": self.strategy,
+                    "similarity_threshold": self.similarity_threshold if self.strategy in ("semantic", "hybrid") else None
                 }
             )
 
