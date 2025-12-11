@@ -28,6 +28,8 @@ from models.document import CleanedDocument, Chunk
 from services.telemetry_db_client import telemetry
 from config import settings
 
+logger = logging.getLogger(__name__)
+
 # Import semantic chunker for advanced chunking strategies
 try:
     from pipeline.semantic_chunker import SemanticChunker, ChunkingStrategy
@@ -35,8 +37,6 @@ try:
 except ImportError:
     SEMANTIC_CHUNKING_AVAILABLE = False
     logger.warning("Semantic chunking not available (missing dependencies)")
-
-logger = logging.getLogger(__name__)
 
 
 class ChunkStageError(Exception):
