@@ -8,9 +8,12 @@
 
 Rake is a production-ready SaaS backend that fetches documents from multiple sources, processes them through a 5-stage pipeline, and stores embeddings in DataForge for semantic search.
 
+**Last Updated:** December 11, 2025
+**System Status:** ✅ HEALTHY (100% Operational - All 4 Forge services running)
+
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
-[![PostgreSQL 14+](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)](https://www.postgresql.org/)
+[![SQLite/PostgreSQL](https://img.shields.io/badge/Database-SQLite%2FPostgreSQL-blue.svg)](https://www.sqlite.org/)
 [![Test Coverage](https://img.shields.io/badge/coverage-80%25+-brightgreen.svg)](docs/TESTING.md)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-success.svg)](docs/archive/IMPLEMENTATION_COMPLETE.md)
 
@@ -19,6 +22,7 @@ Rake is a production-ready SaaS backend that fetches documents from multiple sou
 ## 📚 Table of Contents
 
 - [Overview](#-overview)
+- [Ecosystem Integration](#-ecosystem-integration)
 - [Quick Start](#-quick-start)
 - [Architecture](#%EF%B8%8F-architecture)
 - [Data Sources](#-data-sources)
@@ -57,6 +61,32 @@ Rake handles the complete data ingestion workflow:
 - ✅ **URL Scraping**: Web pages, articles, and documentation
 - ✅ **API Integration**: External REST/HTTP APIs with multiple auth methods
 - ✅ **Database Queries**: Direct SQL database ingestion (PostgreSQL, MySQL, SQLite)
+
+---
+
+## 🌐 Ecosystem Integration
+
+**Rake is part of the complete Forge Ecosystem with all 4 services operational (as of December 11, 2025):**
+
+| Service | Port | Status | Purpose |
+|---------|------|--------|---------|
+| **DataForge** | 8788 | ✅ HEALTHY | Vector search & embeddings |
+| **NeuroForge** | 8000 | ✅ HEALTHY | Multi-model AI routing (5 models) |
+| **ForgeAgents** | 8787 | ✅ HEALTHY | AI agents & skills (120 skills) |
+| **Rake** | 8002 | ✅ HEALTHY | Data ingestion pipeline (this service) |
+
+**System Grade:** A (100% functional) - All services operational after December 11, 2025 bug fixes
+
+### Quick Links to Ecosystem Documentation
+
+- **[Quick Start Guide](../QUICK_START_GUIDE.md)** - Complete API reference & get all services running
+- **[Next Steps & Roadmap](../NEXT_STEPS.md)** - Production deployment guide
+- **[Quick Reference](../QUICK_REFERENCE.md)** - Command cheatsheet for all services
+- **[Ecosystem Architecture](../docs/architecture/FORGE_UNIFIED_ARCHITECTURE.md)** - Complete system design
+- **[Latest Session Report](../docs/sessions/SESSION_DEC_11_2025_COMPLETE.md)** - Dec 11 bug fixes (100% operational)
+- **[Organized Documentation](../docs/README.md)** - Complete documentation index
+
+---
 
 ## 🏗️ Architecture
 
@@ -154,9 +184,9 @@ Rake handles the complete data ingestion workflow:
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 14+ with pgvector extension
+- SQLite (dev) or PostgreSQL 14+ (production)
 - OpenAI API key
-- DataForge service running (port 8001)
+- DataForge service running (port 8788)
 
 ### Installation
 
@@ -183,6 +213,14 @@ Rake handles the complete data ingestion workflow:
    ```
 
 5. **Setup database:**
+
+   **For Development (SQLite - Recommended):**
+   ```bash
+   # Database will be created automatically as SQLite file
+   # No additional setup required!
+   ```
+
+   **For Production (PostgreSQL):**
    ```bash
    # Create database
    createdb forge
@@ -211,11 +249,14 @@ All configuration is managed through environment variables. See [.env.example](.
 RAKE_PORT=8002
 ENVIRONMENT=development
 
-# Database
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/forge
+# Database (SQLite for development)
+DATABASE_URL=sqlite+aiosqlite:///./rake_jobs.db
+
+# Database (PostgreSQL for production)
+# DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/forge
 
 # DataForge
-DATAFORGE_BASE_URL=http://localhost:8001
+DATAFORGE_BASE_URL=http://localhost:8788
 
 # OpenAI
 OPENAI_API_KEY=sk-...
@@ -1534,6 +1575,9 @@ For issues and questions:
 - Review telemetry events
 - Consult health check endpoint
 - Check DataForge connectivity
+- **Ecosystem Docs:** [../docs/README.md](../docs/README.md) - Complete documentation index
+- **Quick Start All Services:** [../QUICK_START_GUIDE.md](../QUICK_START_GUIDE.md)
+- **Latest Status:** [../docs/sessions/SESSION_DEC_11_2025_COMPLETE.md](../docs/sessions/SESSION_DEC_11_2025_COMPLETE.md)
 
 ---
 
